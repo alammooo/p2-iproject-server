@@ -1,4 +1,6 @@
 const axios = require("axios")
+const { comparePassword } = require("../helpers/bcyrpt")
+const { signToken } = require("../helpers/jwt")
 const { User, Favorites } = require("../models")
 
 class Controller {
@@ -23,16 +25,14 @@ class Controller {
         where: { email },
       })
 
-      if (user && user.role !== "Customer") throw { name: "Forbidden" }
-
       if (!user) throw { name: "invalid Login" }
-      const validPassword = Bcyrpt.comparePassword(password, user.password)
+      const validPassword = comparePassword(password, user.password)
       if (!validPassword) throw { name: "invalid Login" }
       const payload = {
         id: user.id,
       }
 
-      const access_token = generateToken(payload)
+      const access_token = signToken(payload)
 
       res.status(200).json({ access_token, message: `Logged in as : ${email}` })
     } catch (error) {
@@ -75,27 +75,12 @@ class Controller {
 
   static async createFavorites(req, res, next) {
     try {
-      const { foodId } = req.params
-      const { id } = req.user
-      const findFood = await Food.findByPk(foodId)
-      if (!findFood) {
-        throw { name: "Data not found", table: "Food" }
-      }
-
-      const options = {
-        where: {
-          UserId: id,
-          FoodId: foodId,
-        },
-      }
-      const [foodData, created] = await Favorites.findOrCreate(options)
-
-      if (!created) {
-        throw { name: "alreadyExist" }
-      }
+      const { title, description, urlToImage } = req.body
+      const UserId = req.user.id
+      const favorite = await Favorite.create({ title, description, urlToImage, UserId })
 
       res.status(201).json({
-        Favorites: `Food with name ${findFood.name} successfully added to Favorites`,
+        Favorites: `News with title  "${title}" successfully added to Favorites`,
       })
     } catch (error) {
       next(error)
@@ -104,11 +89,9 @@ class Controller {
 
   static async deleteFavorites(req, res, next) {
     try {
-      const { foodId } = req.params
+      const { id } = req.params.id
 
-      const deleteFavorites = await Favorites.destroy({
-        where: { FoodId: foodId },
-      })
+      const deleteFavorites = await Favorites.destroy({ where: { id: id } })
 
       if (deleteFavorites === 0) throw { name: "Data not found", table: "Favorites" }
 
