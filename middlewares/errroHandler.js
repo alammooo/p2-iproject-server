@@ -16,8 +16,6 @@ function errorHandler(error, req, res, next) {
     return res.status(401).json({ message: "Invalid Username / Password" })
   } else if (error.name === "JsonWebTokenError" || error.name === "invalid token") {
     return res.status(401).json({ message: "Token is invalid" })
-  } else if (error.name === "Data not found" && error.table === "Food") {
-    return res.status(404).json({ message: "Food is not found" })
   } else if (error.name === "Data not found" && error.table === "Bookmark") {
     return res.status(404).json({ message: "Favorite is not found" })
   } else if (error.name === "alreadyExist") {
