@@ -14,10 +14,10 @@
     "dialect": "mysql"
   },
   "production": {
-    "username": "root",
-    "password": null,
-    "database": "database_production",
-    "host": "127.0.0.1",
-    "dialect": "mysql"
+    "username": "postgres",
+    "password": "!Aa432486954",
+    "database": "postgres",
+    "host": "db.czgfctxzdfsqivapcdek.supabase.co",
+    "dialect": "postgres"
   }
 }

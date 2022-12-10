@@ -1,7 +1,11 @@
 const axios = require("axios")
 const { comparePassword } = require("../helpers/bcyrpt")
 const { signToken } = require("../helpers/jwt")
-const { User, Favorite } = require("../models")
+const { User, Favorite, UserDetail } = require("../models")
+const { OAuth2Client } = require("google-auth-library")
+const CLIENT_ID =
+  "425614752001-tngmaevgsjaggk0oh4uvko5lper71mm1.apps.googleusercontent.com"
+const client = new OAuth2Client(CLIENT_ID)
 
 /* Register & Login */
 class Controller {
@@ -9,8 +13,49 @@ class Controller {
     try {
       const { email, password } = req.body
       const user = await User.create({ email, password })
-      console.log(user, "INI EMAIL PASSWORD")
+
       res.status(201).json(user)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async authGoogleLogin(req, res, next) {
+    try {
+      const googleToken = req.headers["google-oauth-token"]
+      const ticket = await client.verifyIdToken({
+        idToken: googleToken,
+        audience: CLIENT_ID,
+      })
+      const payload = ticket.getPayload()
+      const { email, name } = payload
+
+      const [user, created] = await User.findOrCreate({
+        where: { email: email },
+        defaults: {
+          username: name,
+          email: email,
+          password: "UsingGoogleToLogin",
+        },
+        hooks: false,
+      })
+      const googlePayload = {
+        id: user.id,
+      }
+
+      const [details, createdDetails] = await UserDetail.findOrCreate({
+        where: { UserId: user.id },
+      })
+
+      if (!createdDetails) {
+        details.UserId = user.id
+      }
+
+      const access_token = signToken(googlePayload)
+      res.status(200).json({
+        message: `Login with ${user.email}`,
+        access_token: access_token,
+      })
     } catch (error) {
       next(error)
     }
@@ -29,7 +74,13 @@ class Controller {
       if (!validPassword) throw { name: "invalidLogin" }
 
       const payload = { id: findUser.id }
+      const [user, created] = await UserDetail.findOrCreate({
+        where: { UserId: findUser.id },
+      })
 
+      if (!created) {
+        user.UserId = findUser.id
+      }
       const access_token = signToken(payload)
 
       res.status(200).json({ access_token, message: `Logged in as ${email}` })
@@ -41,16 +92,21 @@ class Controller {
   /* Add Favorites */
   static async addFavorites(req, res, next) {
     try {
-      const { title, description, urlToImage } = req.body
+      const { title, description, urlToImage, url } = req.body
       const UserId = req.user.id
-      console.log(UserId, "USER ID USER")
+      // console.log(UserId, "USER ID USER")
+      const findFavorite = await Favorite.findOne({ where: { title: title } })
+
+      if (findFavorite) throw { name: "alreadyExist", table: "favorite" }
+
       const addFavorites = await Favorite.create({
         title,
         description,
         urlToImage,
+        url,
         UserId,
       })
-      console.log(addFavorites)
+      // console.log(addFavorites)
       res
         .status(201)
         .json({ message: `Success add Favorite to list ${addFavorites.title}` })
@@ -62,7 +118,6 @@ class Controller {
   static async findFavorites(req, res, next) {
     try {
       const { id } = req.user
-
       const options = {}
 
       options.where = {
@@ -99,10 +154,68 @@ class Controller {
       })
       res.status(200).json(data)
     } catch (error) {
-      console.log(error)
+      next(error)
+    }
+  }
+
+  /* UserDetail */
+  static async getUserDetail(req, res, next) {
+    try {
+      const { id } = req.user
+
+      const findUserDetail = await UserDetail.findOne({ where: { UserId: id } })
+
+      if (!findUserDetail) throw { name: "User detail not found", table: "userdetail" }
+      res.status(200).json(findUserDetail)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async postUserDetail(req, res, next) {
+    try {
+      const { id } = req.user
+      const { fullName, gender, telephone, address, UserId = id } = req.body
+      await UserDetail.create({
+        fullName,
+        gender,
+        telephone,
+        address,
+        UserId,
+      })
+      res
+        .status(201)
+        .json({ message: `Successfully add user detail for User : ${fullName}` })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  static async putUserDetail(req, res, next) {
+    try {
+      const { id } = req.user
+      const findUserDetail = await UserDetail.findOne({ where: { UserId: id } })
+      if (!findUserDetail) throw { name: "userNotFound" }
+      const { fullName, gender, telephone, address } = req.body
+      // console.log(req.file, req.body)
+      await UserDetail.update(
+        {
+          fullName,
+          gender,
+          telephone,
+          address,
+          profilePict: req.file?.filename,
+        },
+        { where: { UserId: id } }
+      )
+
+      res.status(201).json({
+        message: `Successfully update user detail for User : ${findUserDetail.fullName}`,
+      })
+    } catch (error) {
+      next(error)
     }
   }
 }
-/* UserDetail */
 
 module.exports = Controller
