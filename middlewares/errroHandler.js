@@ -1,5 +1,5 @@
 function errorHandler(error, req, res, next) {
-  // console.log("\n====================================\n", error)
+  console.log("\n====================================\n", error)
   if (error.name === "SequelizeValidationError") {
     error = error.errors.map((el) => el.message)
     return res.status(400).json({ message: error })
@@ -19,9 +19,9 @@ function errorHandler(error, req, res, next) {
   } else if (error.name === "Data not found" && error.table === "Food") {
     return res.status(404).json({ message: "Food is not found" })
   } else if (error.name === "Data not found" && error.table === "Bookmark") {
-    return res.status(404).json({ message: "Bookmark is not found" })
+    return res.status(404).json({ message: "Favorite is not found" })
   } else if (error.name === "alreadyExist") {
-    return res.status(409).json({ message: "Bookmark already Exists" })
+    return res.status(409).json({ message: "Favorite already Exists" })
   } else if (error.name === "Forbidden") {
     return res.status(403).json({ message: "Not Allowed!" })
   } else if (error.name === "Data not found" && error.table === "Favorites") {

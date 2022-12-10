@@ -3,7 +3,8 @@ const { comparePassword } = require("../helpers/bcyrpt")
 const { signToken } = require("../helpers/jwt")
 const { User, Favorite, UserDetail } = require("../models")
 const { OAuth2Client } = require("google-auth-library")
-const CLIENT_ID = process.env["425614752001-tngmaevgsjaggk0oh4uvko5lper71mm1.apps.googleusercontent.com"]
+const CLIENT_ID =
+  "425614752001-tngmaevgsjaggk0oh4uvko5lper71mm1.apps.googleusercontent.com"
 const client = new OAuth2Client(CLIENT_ID)
 
 /* Register & Login */
@@ -42,6 +43,14 @@ class Controller {
         id: user.id,
       }
 
+      const [details, createdDetails] = await UserDetail.findOrCreate({
+        where: { UserId: user.id },
+      })
+
+      if (!createdDetails) {
+        details.UserId = user.id
+      }
+
       const access_token = signToken(googlePayload)
       res.status(200).json({
         message: `Login with ${user.email}`,
@@ -65,7 +74,13 @@ class Controller {
       if (!validPassword) throw { name: "invalidLogin" }
 
       const payload = { id: findUser.id }
+      const [user, created] = await UserDetail.findOrCreate({
+        where: { UserId: findUser.id },
+      })
 
+      if (!created) {
+        user.UserId = findUser.id
+      }
       const access_token = signToken(payload)
 
       res.status(200).json({ access_token, message: `Logged in as ${email}` })
@@ -80,6 +95,10 @@ class Controller {
       const { title, description, urlToImage, url } = req.body
       const UserId = req.user.id
       // console.log(UserId, "USER ID USER")
+      const findFavorite = await Favorite.findOne({ where: { title: title } })
+
+      if (findFavorite) throw { name: "alreadyExist", table: "favorite" }
+
       const addFavorites = await Favorite.create({
         title,
         description,
@@ -146,7 +165,7 @@ class Controller {
 
       const findUserDetail = await UserDetail.findOne({ where: { UserId: id } })
 
-      if(!findUserDetail) throw{name : "User detail not found", table : "userdetail"}
+      if (!findUserDetail) throw { name: "User detail not found", table: "userdetail" }
       res.status(200).json(findUserDetail)
     } catch (error) {
       next(error)
